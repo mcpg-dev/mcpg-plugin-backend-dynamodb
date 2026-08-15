@@ -1,0 +1,50 @@
+schema: mcpg.dev/plugin/v1
+id: dev.mcpg.backend.dynamodb
+name: DynamoDB Binding
+license: Apache-2.0
+description: |
+  An Amazon DynamoDB backend binding. Each binding declares one
+  operator-fixed table + one operation (get_item / put_item /
+  delete_item / update_item / query / scan / batch_get / batch_write)
+  and exposes it as one MCP tool. Tool arguments use the DynamoDB-JSON
+  convention ({"S":"x"}, {"N":"5"}, …); the table is operator-fixed (no
+  caller-supplied table) and key attributes are validated against the
+  declared key schema. Read ops (get_item / query / scan / batch_get)
+  are side-effect-free; put_item / delete_item / update_item /
+  batch_write MUTATE (surfaced as `aws.mutates` on the audit metadata).
+  Batch ops honour the AWS 25-item limit (a larger request is rejected
+  with a clear error). Uses the modern aws-lc-rs/rustls AWS HTTPS
+  client; static creds, the default credential chain (IRSA / instance
+  role / env / profile), or — for per-caller scoping — layering
+  dev.mcpg.credential.aws-sts in front.
+
+  Operator-fixed query/scan/condition expressions reference DynamoDB
+  `:name` placeholders bound from `params` — a map of placeholder name
+  (`:status`) to a CEL expression evaluated against the tool arguments.
+  Each result is lowered to a scalar AttributeValue (S / N / BOOL / NULL)
+  and merged into ExpressionAttributeValues SERVER-SIDE via the aws-sdk
+  (never string-interpolated into the expression — injection-safe); a
+  binding param overrides a caller value for the same placeholder.
+
+  Every call emits the observability triad: the latency histogram
+  `mcpg_dynamodb_backend_latency_seconds` + the call counter
+  `mcpg_dynamodb_backend_calls_total` (both labelled by `outcome`), and a
+  `dev.mcpg.backend.dynamodb.*` audit event on a failure outcome (carrying
+  `dynamodb.transport: plugin`).
+
+  A second `watch_strategy` entity (kind `dynamodb_poll`) lets a resource
+  subscribe to DynamoDB changes by POLLING a monotonic cursor attribute
+  (a ULID/timestamp sort key) on a table or GSI: it queries (optionally
+  scoped by `key_condition`) ordered by `cursor_attr` descending,
+  `Limit=1`, and emits `notifications/resources/updated` whenever the top
+  cursor value advances past the previously-seen value (the first tick
+  only establishes the baseline, so a watcher never fires spuriously at
+  startup). The cadence is `interval_ms` (default 60000, floored at
+  250 ms) with a per-tick `timeout_ms` budget (default 10000); an empty
+  `table` / `cursor_attr` is rejected at watch start. (Real Streams-based
+  CDC is a deferred follow-up — this reuses the same aws-sdk client.)
+class: backend
+runtime: native-cdylib-v1
+protocol_version: "1.0"
+required_capabilities:
+  - network_outbound

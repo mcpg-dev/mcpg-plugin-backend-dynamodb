@@ -1,0 +1,65 @@
+[package]
+name = "mcpg-plugin-backend-dynamodb"
+version = "0.1.0-alpha.15"
+license = "Apache-2.0"
+edition = "2024"
+description = "Amazon DynamoDB backend binding plugin for mcpg — exposes per-binding DynamoDB operations (get/put/delete/query/scan) as MCP tools over the modern aws-lc-rs/rustls AWS HTTPS client."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+cdylib-export = []
+# Declared empty so the SDK macro's static accessor doesn't trip
+# unexpected_cfgs; dynamodb is consumed as a cdylib.
+static-firstparty = []
+# Gates the LocalStack-backed suite so `cargo test --lib` stays offline.
+integration-tests = []
+
+[dependencies]
+mcpg-plugin-protocol = { git = "https://github.com/mcpg-dev/mcpg-plugin-protocol", tag = "v0.1.0-beta.13", version = "=0.1.0-beta.13" }
+mcpg-plugin-sdk = { git = "https://github.com/mcpg-dev/mcpg-plugin-sdk", tag = "v0.1.0-beta.13", version = "=0.1.0-beta.13", features = ["static-firstparty"] }
+async-trait = "0.1"
+base64 = "0.22"
+cel            = "0.13"
+chrono         = { version = "0.4", features = ["clock"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2.0"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+tracing = "0.1"
+
+# Modern AWS HTTPS client (aws-lc-rs / rustls 0.23). The trap: the SDK
+# `rustls` feature maps to the LEGACY tls-rustls -> hyper-0.14 + rustls
+# 0.21 path; the modern path is `default-https-client`. Disable defaults
+# + select `default-https-client`, NOT `rustls`.
+aws-config = { version = "1", default-features = false, features = [
+    "behavior-version-latest",
+    "default-https-client",
+    "rt-tokio",
+    "credentials-process",
+    "sso",
+] }
+aws-credential-types = "1"
+aws-sdk-dynamodb = { version = "1", default-features = false, features = [
+    "behavior-version-latest",
+    "default-https-client",
+] }
+
+[dev-dependencies]
+testcontainers = { version = "0.27", features = ["blocking"] }
+testcontainers-modules = { version = "0.15", features = ["localstack", "blocking"] }
+
+# The integration suite creates the table with a raw client; integration
+# tests don't inherit the lib's normal deps, so re-declare them here.
+aws-config = { version = "1", default-features = false, features = [
+    "behavior-version-latest",
+    "default-https-client",
+    "rt-tokio",
+] }
+aws-credential-types = "1"
+aws-sdk-dynamodb = { version = "1", default-features = false, features = [
+    "behavior-version-latest",
+    "default-https-client",
+] }
