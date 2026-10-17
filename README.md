@@ -344,7 +344,7 @@ suite drives a real put → get → query → delete round-trip:
 cargo test -p mcpg-plugin-backend-dynamodb --features integration-tests --test integration
 ```
 
-(needs Docker; runs in the `--config=integration` CI lane.)
+(needs Docker; the suite starts `localstack/localstack:4.14.0`.)
 
 ## Notes
 
