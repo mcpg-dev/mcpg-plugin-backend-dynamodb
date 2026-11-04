@@ -1,6 +1,6 @@
 [package]
 name = "mcpg-plugin-backend-dynamodb"
-version = "0.1.0-rc.5"
+version = "0.1.0"
 license = "Apache-2.0"
 edition = "2024"
 description = "Amazon DynamoDB backend binding plugin for mcpg — exposes per-binding DynamoDB operations (get/put/delete/query/scan) as MCP tools over the modern aws-lc-rs/rustls AWS HTTPS client."
